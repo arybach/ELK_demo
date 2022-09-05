@@ -1,0 +1,55 @@
+version: '3'
+
+services:
+  elasticsearch:
+    image: elasticsearch:7.9.2
+    container_name: elasticsearch
+    restart: unless-stopped
+    ports:
+      - 9200:9200
+    environment:
+      - xpack.security.enabled=false
+      - discovery.type=single-node    
+    volumes:
+      - ./elasticsearch/data:/usr/share/elasticsearch/data
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+
+  kibana:
+    image: kibana:7.9.2
+    container_name: kibana
+    restart: unless-stopped
+    ports:
+      - 5601:5601
+    environment:
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+
+  logstash:
+    image: logstash:7.9.2
+    command: logstash -f /usr/share/logstash/config/clickstream.conf
+    depends_on:
+      - elasticsearch
+    container_name: logstash
+    restart: unless-stopped
+    environment:
+      - xpack.monitoring.enabled=true
+    ports:
+      - 5000:5000
+    volumes:
+     # - ./logstash/pipeline:/usr/share/logstash/pipeline
+      - ./logstash/pipeline/weblog.csv:/usr/share/logstash/data/weblog.csv
+      - ./logstash/pipeline/clickstream.conf:/usr/share/logstash/config/clickstream.conf
+
+
+#  curator:
+#   build: curator
+#   restart: always
+#   log_opt:
+#      max-size: "10m"
+#      max-file: "10"
+#   links:
+#      - elasticsearch
